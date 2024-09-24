@@ -11,3 +11,7 @@ https://api.cherubgyre.com
 Non-API project documentation and notes are hosted here:
 
 https://nnix.com/projects/cherubgyre/
+
+The server is here:
+
+https://github.com/davidemerson/cherubgyre
