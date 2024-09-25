@@ -2,14 +2,14 @@ openapi: 3.0.3
 info:
   title: cherubgyre-api
   description: 
-    "The cherubgyre-server API represents the interface to the back end of cherubgyre, an anonymous community defense social network."
+    "The cherubgyre-server API represents the interface to the back end of cherubgyre, an anonymous community defense social network. We use it for managing users, following/unfollowing, duress statuses, JWT authentication, invite codes, location-based duress broadcasts, and other user status features."
   contact:
     name: Author
     email: d@cherubgyre.com
+  version: 0.3.0
   license:
     name: GNU General Public License 3
     url: https://www.gnu.org/licenses/gpl-3.0-standalone.html
-  version: 1.0.1
 
 servers:
   - url: https://prod.cherubgyre.com/v1
@@ -32,136 +32,141 @@ servers:
         enum:
           - '8443'
         default: '8443'
-
+        
 security:
   - bearerAuth: []
 
 paths:
-  /users/register:
+  /users/invite:
     post:
-      summary: Register a new user anonymously
+      summary: Generate an invite code for a new user
+      description: Generate an anonymous invite code that can be shared with others for them to register. Each user can request only five invite codes per 168-hour period.
       responses:
         '200':
-          description: User registered successfully
+          description: Invite code generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteCodeResponse'
+        '429':
+          description: Rate limit exceeded. No more than five invite codes can be requested per 168-hour period.
+        '403':
+          description: Unauthorized access (if the user is not authenticated)
+
+  /users/register:
+    post:
+      summary: Register a new user by invite code
+      description: Registration requires a valid invite code. The backend will generate and assign a unique username and avatar. Users must provide both a normal pin code and a duress pin code.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '200':
+          description: User registered successfully with procedurally generated username and avatar
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
-      security: []  # This endpoint does not require authentication
+        '400':
+          description: Invalid invite code or missing fields
+        '403':
+          description: Invite code expired or invalid
 
-  /users/login:
-    post:
-      summary: User login
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                auth_token:
-                  type: string
-      responses:
-        '200':
-          description: User logged in successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                  user_id:
-                    type: string
-      security: []  # No auth required for login
-
-  /users/{user_id}/follow:
-    post:
-      summary: Follow another user
-      parameters:
-        - in: path
-          name: user_id
-          schema:
-            type: string
-          required: true
-          description: ID of the user initiating the follow
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FollowRequest'
-      responses:
-        '200':
-          description: Follow successful
-
-  /users/{user_id}/unfollow:
-    delete:
-      summary: Unfollow a user
-      parameters:
-        - in: path
-          name: user_id
-          schema:
-            type: string
-          required: true
-          description: ID of the user initiating the unfollow
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FollowRequest'
-      responses:
-        '200':
-          description: Unfollow successful
-
-  /users/{user_id}/status:
-    post:
-      summary: Update the user's status
-      parameters:
-        - in: path
-          name: user_id
-          schema:
-            type: string
-          required: true
-          description: ID of the user whose status is being updated
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Status'
-      responses:
-        '200':
-          description: Status updated successfully
-
+  /users/{user_id}/followers:
     get:
-      summary: Get the user's latest status
+      summary: Get the list of followers for a user
+      description: A user can see who is following them.
       parameters:
         - in: path
           name: user_id
+          required: true
           schema:
             type: string
-          required: true
-          description: ID of the user whose status is being fetched
+          description: ID of the user whose followers are being fetched
       responses:
         '200':
-          description: User status fetched successfully
+          description: List of followers retrieved successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Status'
+                type: array
+                items:
+                  $ref: '#/components/schemas/Follower'
+
+  /users/{user_id}/followers/{identifier}:
+    delete:
+      summary: Remove or ban a follower
+      description: A user can remove a follower from their list and optionally ban them from refollowing. The removed or banned user will receive a notice.
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema:
+            type: string
+          description: ID of the user removing the follower
+        - in: path
+          name: identifier
+          required: true
+          schema:
+            type: string
+          description: Username or user_id of the follower to be removed or banned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemoveFollowerRequest'
+      responses:
+        '200':
+          description: Follower removed or banned successfully, and the follower has been notified
+        '404':
+          description: Follower not found or user does not exist
+
+  /users/follow:
+    post:
+      summary: Follow another user by username or user ID
+      description: Follow a user by either their username or user ID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FollowRequest'
+      responses:
+        '200':
+          description: Follow request successful
+        '404':
+          description: User to follow not found
+
+  /users/unfollow:
+    post:
+      summary: Unfollow another user by username or user ID
+      description: Unfollow a user by either their username or user ID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnfollowRequest'
+      responses:
+        '200':
+          description: Unfollow request successful
+        '404':
+          description: User to unfollow not found
 
   /users/{user_id}/duress:
     post:
-      summary: Push duress status to followers
-      description: Push a duress notification to all the user's followers.
+      summary: Push duress status to followers and nearby users
+      description: Push a duress notification to all the user's followers and optionally to nearby users within 0.5 km if location-based broadcasting is enabled.
       parameters:
         - in: path
           name: user_id
+          required: true
           schema:
             type: string
-          required: true
           description: ID of the user pushing the duress status
       requestBody:
         required: true
@@ -171,9 +176,117 @@ paths:
               $ref: '#/components/schemas/DuressStatus'
       responses:
         '200':
-          description: Duress status pushed successfully
+          description: Duress status pushed successfully to followers and/or nearby users
+        '429':
+          description: Rate limit exceeded. No more than two duress alerts can be sent per hour.
         '403':
-          description: Forbidden, unauthorized access
+          description: Unauthorized access
+
+  /users/{user_id}/duress/cancel:
+    post:
+      summary: Cancel an active duress status
+      description: Allows a user to cancel an active duress status by entering their normal pin code. If successful, a cancellation notice is sent to their followers.
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema:
+            type: string
+          description: ID of the user canceling the duress status
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DuressCancellationRequest'
+      responses:
+        '200':
+          description: Duress status canceled successfully and notification sent to followers
+        '403':
+          description: Invalid pin code or unauthorized access
+        '404':
+          description: No active duress status found for the user
+
+  /users/{user_id}/test-mode:
+    post:
+      summary: Enable testing mode for duress features
+      description: Enable a five-minute testing mode where duress features (e.g., accelerometer, pin code) can be tested without sending actual alerts to the community. The app will notify the user when it would have sent an alert.
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema:
+            type: string
+          description: ID of the user entering testing mode
+      responses:
+        '200':
+          description: Testing mode enabled for five minutes
+        '403':
+          description: Unauthorized access
+
+  /users/{user_id}/map:
+    get:
+      summary: Display map of last check-in locations and duress status of followed users
+      description: Retrieve the last check-in locations and duress status of all users the requesting user follows.
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema:
+            type: string
+          description: ID of the user requesting the map data
+      responses:
+        '200':
+          description: Map data for followed users retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserLocationData'
+
+  /users/{user_id}/preferences:
+    get:
+      summary: Get user preferences for duress broadcasts
+      description: Fetch the user's current settings for location-based duress broadcasts.
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema:
+            type: string
+          description: ID of the user whose preferences are being fetched
+      responses:
+        '200':
+          description: User preferences fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPreferences'
+
+    patch:
+      summary: Update user preferences for duress broadcasts
+      description: Update the user's settings to enable or disable location-based duress broadcasts and receiving of location-based duress alerts.
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema:
+            type: string
+          description: ID of the user whose preferences are being updated
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPreferencesUpdate'
+      responses:
+        '200':
+          description: User preferences updated successfully
+        '400':
+          description: Invalid request or missing fields
+        '403':
+          description: Unauthorized access
 
 components:
   securitySchemes:
@@ -191,52 +304,134 @@ components:
           description: Unique user ID
         username:
           type: string
-          nullable: true
-          description: Optional username
+          description: Procedurally generated username
+        avatar:
+          type: string
+          description: URL or identifier for procedurally generated avatar
 
-    FollowRequest:
+    InviteCodeResponse:
+      type: object
+      properties:
+        invite_code:
+          type: string
+          description: Generated invite code
+          example: "ABC123DEF456"
+
+    RegisterRequest:
+      type: object
+      properties:
+        invite_code:
+          type: string
+          description: Valid invite code received from an inviter
+        normal_pin:
+          type: string
+          description: A user-selected normal pin code for authentication
+        duress_pin:
+          type: string
+          description: A user-selected duress pin code to trigger duress alerts
+
+    Follower:
       type: object
       properties:
         follower_id:
           type: string
-          description: ID of the user who is following
-        followee_id:
+          description: ID of the follower
+        username:
           type: string
-          description: ID of the user being followed
+          description: Username of the follower
+        avatar:
+          type: string
+          description: The follower's avatar
 
-    Status:
+    RemoveFollowerRequest:
       type: object
       properties:
-        location:
-          type: string
-          description: User's current location (coordinates)
-        duress:
+        ban:
           type: boolean
-          description: Whether the user is under duress
+          description: Whether to ban the follower from refollowing in the future
+          example: true
+
+    FollowRequest:
+      type: object
+      properties:
+        identifier:
+          type: string
+          description: Username or user ID of the user to follow
+
+    UnfollowRequest:
+      type: object
+      properties:
+        identifier:
+          type: string
+          description: Username or user ID of the user to unfollow
+
+    DuressStatus:
+      type: object
+      properties:
         duress_type:
           type: string
-          description: The type of duress trigger, if user is under duress. Can be multiple values if multiple types were detected
-          example: "accelerometer, duress code, duress timer"
+          description: Type of duress being triggered (accelerometer, timeout, pin_code)
+          enum: [accelerometer, timeout, pin_code]
+        message:
+          type: string
+          description: Optional message about the duress state
+          example: "Duress pin code entered."
+        timestamp:
+          type: string
+          format: date-time
+        additional_data:
+          type: object
+          description: Additional metadata based on the duress type
+
+    DuressCancellationRequest:
+      type: object
+      properties:
+        normal_pin:
+          type: string
+          description: The user's normal pin code to confirm duress cancellation
+        confirm:
+          type: boolean
+          description: Confirmation to proceed with canceling the active duress status
+
+    UserLocationData:
+      type: object
+      properties:
+        user_id:
+          type: string
+          description: ID of the followed user
+        username:
+          type: string
+          description: Username of the followed user
+        location:
+          type: string
+          description: Last known check-in location (coordinates)
+        duress:
+          type: boolean
+          description: Whether the user is currently under duress
         last_checkin:
           type: string
           format: date-time
           description: Timestamp of the last check-in
 
-    DuressStatus:
+    UserPreferences:
       type: object
       properties:
-        duress:
+        broadcast_duress:
           type: boolean
-          description: Whether the user is under duress
-          example: true
-        duress_type:
-          type: string
-          description: The type of duress trigger
-          example: "accelerometer, duress code, duress timer"
-        message:
-          type: string
-          description: Optional message about the duress state
-          example: "cherub-gyre-chicago entered duress state"
+          description: Whether the user allows duress alerts to be broadcast to nearby users
+        receive_duress_broadcasts:
+          type: boolean
+          description: Whether the user wants to receive location-based duress alerts
+
+    UserPreferencesUpdate:
+      type: object
+      properties:
+        broadcast_duress:
+          type: boolean
+          description: Set this to true to allow duress alerts to be broadcast to nearby users
+        receive_duress_broadcasts:
+          type: boolean
+          description: Set this to true to receive location-based duress alerts
 
 externalDocs:
-  url: https://nnix.com/projects/cherubgyre
+    url: https://nnix.com/projects/cherubgyre
