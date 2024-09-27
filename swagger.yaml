@@ -37,6 +37,14 @@ security:
   - bearerAuth: []
 
 paths:
+  /health:
+    post:
+      summary: Healthcheck
+      description: Generate a 200 OK if system is live.
+      responses:
+        '200':
+          description: System is live
+
   /users/invite:
     post:
       summary: Generate an invite code for a new user
