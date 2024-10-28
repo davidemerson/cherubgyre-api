@@ -133,10 +133,17 @@ paths:
         '404':
           description: Follower not found or user does not exist
 
-  /users/follow:
+  /users/{user_id}/follow:
     post:
       summary: Follow another user by username or user ID
       description: Follow a user by either their username or user ID.
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema:
+            type: string
+          description: ID of the user following
       requestBody:
         required: true
         content:
@@ -149,10 +156,17 @@ paths:
         '404':
           description: User to follow not found
 
-  /users/unfollow:
+  /users/{user_id}/unfollow:
     post:
       summary: Unfollow another user by username or user ID
       description: Unfollow a user by either their username or user ID.
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema:
+            type: string
+          description: ID of the user unfollowing
       requestBody:
         required: true
         content:
