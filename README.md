@@ -8,4 +8,4 @@ Non-API project documentation and notes are hosted [here](https://nnix.com/proje
 
 The server is [here](https://github.com/davidemerson/cherubgyre)
 
-There's a stub of a website [here](https://cherubgyre.com)
+There's a stub of a website [here](https://cherubgyre.com) but it's mostly a collection of notes pending a production service.
