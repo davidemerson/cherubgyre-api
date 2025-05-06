@@ -11,9 +11,10 @@ The server is [here](https://github.com/davidemerson/cherubgyre)
 There's a stub of a website [here](https://cherubgyre.com) but it's mostly a collection of notes pending a production service.
 
 
+
 # 🧪 CherubGyre API Test Suite
 
-[CherubGyre API](http://64.227.1.200:8080). The tests are written in Python using `pytest` and `httpx`, covering key functionalities such as authentication, duress alerts, user preferences, and social interactions.
+This repository contains an automated test suite for the [CherubGyre API](http://64.227.1.200:8080), an anonymous community defense social network. The tests are written in Python using `pytest` and `httpx`, covering key functionalities such as authentication, duress alerts, user preferences, and social interactions.
 
 ## 📦 Prerequisites
 
@@ -57,11 +58,12 @@ Before running the tests, update the configuration variables at the top of the `
 BASE_URL = "http://64.227.1.200:8080"
 TEST_USERNAME = "your_test_username"
 TEST_NORMAL_PIN = "your_test_pin"
-TEST_USER_ID = "your_test_user_id"
 TARGET_USER_ID = "target_user_id_to_follow"
 ```
 
-Replace the placeholder values with valid credentials and user IDs relevant to your testing environment.
+- `TEST_USERNAME` and `TEST_NORMAL_PIN` are used to log in and retrieve a JWT token.
+- After login, the test suite automatically fetches the user's ID from the `/profile` endpoint.
+- `TARGET_USER_ID` is the ID or username of another user used in follow/unfollow tests.
 
 ## 🧪 Running the Tests
 
@@ -116,7 +118,3 @@ def test_example_endpoint(auth_headers):
     assert response.status_code == 200
     assert response.json()["key"] == "expected_value"
 ```
-
-## 🤝 Contributing
-
-Contributions are welcome! Please fork the repository and submit a pull request with your enhancements.
