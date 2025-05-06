@@ -117,10 +117,6 @@ def test_example_endpoint(auth_headers):
     assert response.json()["key"] == "expected_value"
 ```
 
-## 📄 License
-
-This project is licensed under the [MIT License](LICENSE).
-
 ## 🤝 Contributing
 
 Contributions are welcome! Please fork the repository and submit a pull request with your enhancements.
